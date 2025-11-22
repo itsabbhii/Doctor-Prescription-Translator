@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Starting Gemini API call with media type:", mediaType);
 
     // Correct working model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
     // ⚠️ YOUR ORIGINAL PROMPT — NOT CHANGED AT ALL ⚠️
     const prompt = `You are a prescription analyzer. Analyze this prescription image and extract all medicines/medications with their complete details.
@@ -68,6 +68,49 @@ Requirements:
 - Confidence should be between 0 and 1 (1 being very confident)
 - Return ONLY valid JSON, no additional text`
 
+    const prompt2 = `You are a prescription analyzer. Analyze this prescription image and extract all medicines/medications with their complete details.
+
+Requirements:
+
+1. Extract **ALL medicines visible** in the prescription.
+2. Use **null** for unknown or illegible values. Do NOT guess, except for brand/generic lookup as described below.
+3. If a medicine's **generic name or brand name is missing**, use only **real, verified, and legitimate sources** to find the correct name, and place it in the required column.
+4. Provide realistic uses and side effects based on the medication.
+5. Confidence should be between 0 and 1 (1 = very confident, 0 = unsure).
+6. Return **ONLY valid JSON**, no explanations, summaries, or extra text.
+7. If handwriting is unclear or ambiguous, mark unknown fields as null but keep raw_text if partially readable.
+8. Always prioritize **accuracy and real-life correctness** over completeness.
+
+Return a JSON object with this exact structure:
+
+{
+  "items": [
+    {
+      "raw_text": "Original text from prescription",
+      "drug_brand": "Brand name or null",
+      "drug_generic": "Generic name or null",
+      "strength": "Dosage strength or null",
+      "form": "tablet/capsule/liquid/injection/etc",
+      "route": "oral/injection/topical/etc",
+      "sig": {
+        "dose": "Amount per dose or null",
+        "frequency": "How often to take or null",
+        "duration": "Duration of treatment or null",
+        "timing": "Special timing instructions or null"
+      },
+      "uses": ["Use 1", "Use 2"],
+      "side_effects_common": ["Side effect 1", "Side effect 2"],
+      "side_effects_serious": ["Serious side effect 1"],
+      "citations": ["Source 1"],
+      "confidence": 0.95
+    }
+  ],
+  "disclaimer": "This analysis is for informational purposes only. Always consult with a healthcare professional."
+}
+
+Input: [insert prescription image data in base64]
+`
+
     // FIXED generateContent format
     const result = await model.generateContent({
       contents: [
@@ -80,7 +123,7 @@ Requirements:
                 mimeType: mediaType,
               },
             },
-            { text: prompt },
+            { text: prompt2 },
           ],
         },
       ],
